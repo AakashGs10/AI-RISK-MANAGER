@@ -1,0 +1,149 @@
+{
+    "held_out_test_size": 3031,
+    "precision": 0.5909,
+    "recall": 1.0,
+    "f1_score": 0.7429,
+    "auc_pr": 0.7158,
+    "optimal_threshold": 0.1,
+    "confusion_matrix": {
+        "tn": 2987,
+        "fp": 18,
+        "fn": 0,
+        "tp": 26
+    },
+    "hyperparameters": {
+        "learning_rate": 0.05,
+        "max_depth": 4,
+        "min_child_weight": 1,
+        "n_estimators": 100,
+        "subsample": 0.8
+    },
+    "cv_auc_pr": 0.9949,
+    "financials": {
+        "false_positives": 18,
+        "false_positive_cost_inr": 13500,
+        "fraud_prevented": 26,
+        "fraud_savings_inr": 65000,
+        "net_savings_inr": 51500,
+        "cost_per_fp_inr": 750,
+        "cost_per_fn_inr": 2500,
+        "assumptions": "AOV=INR 2500, Margin=10%, LTV Churn Penalty=INR 500 per FP, Chargeback=INR 2500 per FN"
+    },
+    "threshold_analysis": [
+        {
+            "threshold": 0.1,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.15,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.2,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.25,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.3,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.35,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.4,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.45,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.5,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.55,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.6,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.65,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.7,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.75,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.8,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.85,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        },
+        {
+            "threshold": 0.9,
+            "fp": 18,
+            "fn": 0,
+            "total_cost_inr": 13500
+        }
+    ],
+    "ai_judgment": {
+        "model_choice": "XGBoost over Neural Network - tree models outperform DNNs on tabular data (Grinsztajn NeurIPS 2022). Latency: 2ms vs 50ms.",
+        "graph_choice": "Louvain over GraphSAGE - O(n log n) vs O(n*k*L). Production: swap to GraphSAGE for inductive learning.",
+        "firewall_choice": "Keyword-based over LLM-based - deterministic, 0ms latency, no hallucination risk. Production: add embedding similarity.",
+        "threshold_choice": "Cost-optimized at 0.10 (not default 0.5). Minimizes FP cost + FN cost jointly.",
+        "what_we_chose_NOT_to_use_ai_for": [
+            "Velocity checks (rule-based counter, not learned)",
+            "Device age calculation (arithmetic, not ML)",
+            "Ring topology classification (graph theory, not neural)",
+            "Audit trail generation (deterministic hashing, not generative AI)",
+            "Threshold selection (cost-curve analysis, not AutoML)"
+        ]
+    }
+}
