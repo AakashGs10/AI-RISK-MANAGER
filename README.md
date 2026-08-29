@@ -38,12 +38,9 @@ flowchart TD
     
     %% Pre-ML Filter Layer
     subgraph PreFilter[Layer 1: Pre-ML Guardrails]
-        SG[Semantic Firewall
-Intercepts 'IGNORE PREVIOUS']:::guard
-        AG[Agentic Velocity Limits
-Blocks Autonomous Txn > ₹10k]:::guard
-        SI[Synthetic Identity 'Too Clean' Detector
-Flags zero-variance perfect accounts]:::guard
+        SG["Semantic Firewall<br>Intercepts 'IGNORE PREVIOUS'"]:::guard
+        AG["Agentic Velocity Limits<br>Blocks Autonomous Txn > ₹10k"]:::guard
+        SI["Synthetic Identity 'Too Clean' Detector<br>Flags zero-variance perfect accounts"]:::guard
     end
     
     Gateway --> SG
@@ -52,10 +49,8 @@ Flags zero-variance perfect accounts]:::guard
     
     %% Shared Backbone
     subgraph Backbone[Shared Backbone]
-        RE[Rolling Feature Extractor
-IP Velocity, Device Age, Z-Scores]:::data
-        RC[(Redis Cache
-Graph Centrality, Community IDs)]:::data
+        RE["Rolling Feature Extractor<br>IP Velocity, Device Age, Z-Scores"]:::data
+        RC[("Redis Cache<br>Graph Centrality, Community IDs")]:::data
     end
     
     SI --> RE
@@ -63,12 +58,9 @@ Graph Centrality, Community IDs)]:::data
     
     %% Core ML Engines
     subgraph CoreML[Layer 2 & 3: The ML Engines]
-        XGB[XGBoost Layer 1
-Fraud-Spike Detection]:::ml
-        FGA[Cross-Merchant Graph Stitching
-Topology & Community Detection]:::ml
-        SIS[Epidemiological SIS Model
-Time-Decaying Risk Propagation]:::ml
+        XGB["XGBoost Layer 1<br>Fraud-Spike Detection"]:::ml
+        FGA["Cross-Merchant Graph Stitching<br>Topology & Community Detection"]:::ml
+        SIS["Epidemiological SIS Model<br>Time-Decaying Risk Propagation"]:::ml
     end
     
     RC --> XGB
@@ -77,10 +69,8 @@ Time-Decaying Risk Propagation]:::ml
     
     %% Explanation & Compliance
     subgraph Compliance[Layer 4: Compliance & Explanations]
-        CF[Counterfactual Generator
-Graph Perturbation Proofs]:::comp
-        AT[Adaptive Threshold Engine
-MCC & Contextual Adjustments]:::comp
+        CF["Counterfactual Generator<br>Graph Perturbation Proofs"]:::comp
+        AT["Adaptive Threshold Engine<br>MCC & Contextual Adjustments"]:::comp
     end
     
     XGB --> AT
@@ -97,8 +87,7 @@ MCC & Contextual Adjustments]:::comp
     
     %% MCP SOC Analyst Integration
     subgraph MCP[Model Context Protocol Server]
-        Claude[Claude Desktop App
-(Tier-3 SOC Analyst)]:::mcp
+        Claude["Claude Desktop App<br>(Tier-3 SOC Analyst)"]:::mcp
         T1[get_active_fraud_rings]:::mcp
         T2[generate_dispute_evidence]:::mcp
         T3[evaluate_risk]:::mcp
