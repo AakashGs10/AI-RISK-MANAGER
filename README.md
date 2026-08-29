@@ -174,11 +174,11 @@ The stages have a real dependency order — each one reads output the previous s
 # 1. Generate synthetic transactions + injected fraud rings
 python data/generate.py
 
-# 2. Train the XGBoost fraud-spike model on the generated tabular features
-python ml/train.py
-
-# 3. Build the cross-merchant graph, compute PageRank/Louvain + epidemic decay + counterfactuals
+# 2. Build the cross-merchant graph, compute PageRank/Louvain + epidemic decay + counterfactuals
 python graph_engine/build_graph.py
+
+# 3. Train the XGBoost fraud-spike model on the generated tabular features
+python ml/train.py
 
 # 4. Start the API (loads model.json + graph_risk_scores.csv on startup)
 uvicorn backend.app:app --reload --port 8000
