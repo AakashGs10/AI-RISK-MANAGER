@@ -4,7 +4,127 @@
 
 Abuse-Ring Sentinel intercepts every payment — human or AI-agent-initiated — before it reaches the payment API, running it through four defensive layers in under 100ms. Modern fraud rings spread mule accounts across multiple merchants specifically to stay under any single merchant's radar; this system is built around the idea that only an aggregator (like Razorpay, sitting across many merchants) can see the full ring.
 
+
+## The Plain-English Pitch
+**The Problem:** In the future, AI agents (like ChatGPT) will be making purchases and moving money automatically on our behalf. But what happens when a fraudster hacks an AI, or sets up a massive network of bots to steal money? Traditional security systems are built to catch human thieves, not autonomous AI swarms. Furthermore, modern scammers hide by spreading their fake accounts across dozens of different stores. Because each store only sees a tiny piece of the puzzle, the scammers slip right through.
+
+**Our Solution:** We built the **Abuse-Ring Sentinel**. It is a "Zero-Trust" gatekeeper that sits in front of the payment button and acts like a hyper-intelligent security guard. It runs every single transaction through 4 layers of defense in less than a tenth of a second.
+
+**1. The "Too Perfect" Trap (Synthetic Identity)**
+Most security systems look for anomalies—like someone typing too fast or buying too much. We do the opposite. Fraudsters who create fake accounts often use automated scripts that are statistically *too perfect*. If an account has absolutely zero variance, perfect timing, and zero friction, we flag it as a bot. Real humans are messy; perfection is suspicious.
+
+**2. The Hard Trust Boundary**
+If we detect that an AI agent is making the purchase, we don't rely on guessing. We enforce a hard limit (e.g., ₹10,000). If the AI tries to move more than that, we block it immediately. We believe that when dealing with autonomous AI, safety rules should be written in stone, not left up to a machine learning algorithm.
+
+**3. The Cross-Merchant Map**
+Since scammers spread out across multiple stores, we act as a massive aggregator. We safely stitch together the data from multiple merchants by connecting the dots between shared devices and IP addresses. Even if a scammer only buys one item at Store A, and one item at Store B, our system sees the massive web connecting them and shuts the entire ring down. 
+
+**4. The "Infection" Model**
+We don't just give an account a static risk score. We treat fraud like a virus. If a clean account interacts with a known scammer, it gets "infected" and its risk score spikes. But just like a real virus, that risk decays over time as long as they don't interact with scammers again. 
+
+**5. AI Investigating AI**
+Finally, when a transaction is blocked, our system mathematically proves *why* it was blocked so that regulators (like the RBI) are happy. We then expose this entire system to Claude, turning Claude into our own autonomous Fraud Investigator. It can read our graphs, spot the scammers, and write legal chargeback evidence in seconds.
+
 ## Architecture
+
+```mermaid
+flowchart TD
+    %% Input Layer
+    classDef input fill:#111827,stroke:#3b82f6,stroke-width:2px,color:#fff
+    A1[Human Transaction]:::input --> Gateway
+    A2[Agentic Transaction via MCP]:::input --> Gateway
+
+    Gateway[FastAPI Gateway /api/pay]:::core
+    
+    %% Pre-ML Filter Layer
+    subgraph PreFilter[Layer 1: Pre-ML Guardrails]
+        SG[Semantic Firewall
+Intercepts 'IGNORE PREVIOUS']:::guard
+        AG[Agentic Velocity Limits
+Blocks Autonomous Txn > ₹10k]:::guard
+        SI[Synthetic Identity 'Too Clean' Detector
+Flags zero-variance perfect accounts]:::guard
+    end
+    
+    Gateway --> SG
+    SG --> AG
+    AG --> SI
+    
+    %% Shared Backbone
+    subgraph Backbone[Shared Backbone]
+        RE[Rolling Feature Extractor
+IP Velocity, Device Age, Z-Scores]:::data
+        RC[(Redis Cache
+Graph Centrality, Community IDs)]:::data
+    end
+    
+    SI --> RE
+    RE --> RC
+    
+    %% Core ML Engines
+    subgraph CoreML[Layer 2 & 3: The ML Engines]
+        XGB[XGBoost Layer 1
+Fraud-Spike Detection]:::ml
+        FGA[Cross-Merchant Graph Stitching
+Topology & Community Detection]:::ml
+        SIS[Epidemiological SIS Model
+Time-Decaying Risk Propagation]:::ml
+    end
+    
+    RC --> XGB
+    RC --> FGA
+    FGA --> SIS
+    
+    %% Explanation & Compliance
+    subgraph Compliance[Layer 4: Compliance & Explanations]
+        CF[Counterfactual Generator
+Graph Perturbation Proofs]:::comp
+        AT[Adaptive Threshold Engine
+MCC & Contextual Adjustments]:::comp
+    end
+    
+    XGB --> AT
+    SIS --> CF
+    CF --> AT
+    
+    %% Decision Routing
+    DR{Decision Router}:::router
+    AT --> DR
+    
+    DR -- "Score > 85.0" --> BLOCK[BLOCK]:::block
+    DR -- "Score > 75.0" --> STEP[STEP-UP / 2FA]:::warn
+    DR -- "Score < 75.0" --> ALLOW[ALLOW]:::allow
+    
+    %% MCP SOC Analyst Integration
+    subgraph MCP[Model Context Protocol Server]
+        Claude[Claude Desktop App
+(Tier-3 SOC Analyst)]:::mcp
+        T1[get_active_fraud_rings]:::mcp
+        T2[generate_dispute_evidence]:::mcp
+        T3[evaluate_risk]:::mcp
+    end
+    
+    Claude <--> T1
+    Claude <--> T2
+    Claude <--> T3
+    T1 -.-> FGA
+    T2 -.-> CF
+    
+    %% Styling
+    classDef core fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#fff
+    classDef guard fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff
+    classDef data fill:#1e293b,stroke:#94a3b8,stroke-width:2px,color:#fff
+    classDef ml fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#fff
+    classDef comp fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    classDef router fill:#050810,stroke:#f59e0b,stroke-width:3px,color:#fff
+    classDef block fill:#991b1b,color:#fff,font-weight:bold
+    classDef warn fill:#b45309,color:#fff,font-weight:bold
+    classDef allow fill:#166534,color:#fff,font-weight:bold
+    classDef mcp fill:#4c1d95,stroke:#a78bfa,stroke-width:2px,color:#fff
+```
+
+
+
 
 ### Layer 1 — Pre-ML Guardrails
 * **Semantic firewall:** scans the raw agent prompt for injection/bypass patterns before any ML runs.
