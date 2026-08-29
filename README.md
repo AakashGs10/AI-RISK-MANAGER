@@ -4,26 +4,10 @@
 
 Abuse-Ring Sentinel intercepts every payment — human or AI-agent-initiated — before it reaches the payment API, running it through four defensive layers in under 100ms. Modern fraud rings spread mule accounts across multiple merchants specifically to stay under any single merchant's radar; this system is built around the idea that only an aggregator (like Razorpay, sitting across many merchants) can see the full ring.
 
-
 ## The Plain-English Pitch
 **The Problem:** In the future, AI agents (like ChatGPT) will be making purchases and moving money automatically on our behalf. But what happens when a fraudster hacks an AI, or sets up a massive network of bots to steal money? Traditional security systems are built to catch human thieves, not autonomous AI swarms. Furthermore, modern scammers hide by spreading their fake accounts across dozens of different stores. Because each store only sees a tiny piece of the puzzle, the scammers slip right through.
 
 **Our Solution:** We built the **Abuse-Ring Sentinel**. It is a "Zero-Trust" gatekeeper that sits in front of the payment button and acts like a hyper-intelligent security guard. It runs every single transaction through 4 layers of defense in less than a tenth of a second.
-
-**1. The "Too Perfect" Trap (Synthetic Identity)**
-Most security systems look for anomalies—like someone typing too fast or buying too much. We do the opposite. Fraudsters who create fake accounts often use automated scripts that are statistically *too perfect*. If an account has absolutely zero variance, perfect timing, and zero friction, we flag it as a bot. Real humans are messy; perfection is suspicious.
-
-**2. The Hard Trust Boundary**
-If we detect that an AI agent is making the purchase, we don't rely on guessing. We enforce a hard limit (e.g., ₹10,000). If the AI tries to move more than that, we block it immediately. We believe that when dealing with autonomous AI, safety rules should be written in stone, not left up to a machine learning algorithm.
-
-**3. The Cross-Merchant Map**
-Since scammers spread out across multiple stores, we act as a massive aggregator. We safely stitch together the data from multiple merchants by connecting the dots between shared devices and IP addresses. Even if a scammer only buys one item at Store A, and one item at Store B, our system sees the massive web connecting them and shuts the entire ring down. 
-
-**4. The "Infection" Model**
-We don't just give an account a static risk score. We treat fraud like a virus. If a clean account interacts with a known scammer, it gets "infected" and its risk score spikes. But just like a real virus, that risk decays over time as long as they don't interact with scammers again. 
-
-**5. AI Investigating AI**
-Finally, when a transaction is blocked, our system mathematically proves *why* it was blocked so that regulators (like the RBI) are happy. We then expose this entire system to Claude, turning Claude into our own autonomous Fraud Investigator. It can read our graphs, spot the scammers, and write legal chargeback evidence in seconds.
 
 ## Architecture
 
@@ -112,25 +96,28 @@ flowchart TD
     classDef mcp fill:#4c1d95,stroke:#a78bfa,stroke-width:2px,color:#fff
 ```
 
+### Layer 1 — The Pre-ML Guardrail (Deterministic Trust Boundaries)
+Philosophically, this layer is the odd one out—we deliberately *don't* use machine learning for the core decision. When dealing with autonomous AI agents moving real money, safety-critical boundaries need to be deterministic, auditable, and impossible for ML drift to quietly erode over time. It performs three jobs:
+* **Synthetic Identity Detector:** Fraudsters generating fake identities at scale use scripts, and scripts are statistically too clean. Instead of hunting for anomalies, we hunt for unnatural perfection (zero variance in purchase timing, robotic regularity). If an account is "too good to be human," it gets flagged.
+* **Agentic Velocity Limits:** A hard-coded trust boundary. If an AI agent attempts to move more than ₹10,000 autonomously, it's blocked instantly—no ML in the loop, no exceptions.
+* **Semantic Firewall:** Defends against prompt injection, screening incoming transaction metadata for malicious instructions before it reaches Claude's reasoning layer.
 
+### Layer 2 — The Fraud-Spike Detector (XGBoost)
+Once a transaction clears the guardrails, it flows into the Fraud-Spike Detector. We engineer rolling, time-windowed features (IP velocity, device age, amount z-scores) to catch brute-force spikes before the slower graph layer finishes updating.
+* **Why XGBoost, not a Neural Network?** 
+  1. **Speed:** Sub-100ms budget. XGBoost on tabular features is orders of magnitude faster than deep nets.
+  2. **Interpretability:** Gradient-boosted trees give us feature importances almost for free, so we can tell regulators exactly which features pushed a score up.
+  3. **Tabular Dominance:** Neural nets earn their keep on unstructured data (images/text). On structured, rolling numeric features, tree ensembles consistently match or beat deep learning with far less training data.
 
+### Layer 3 — The Cross-Merchant Graph Aggregator
+This is where we catch the coordinated rings that no single merchant could ever see. If a mule ring spreads its accounts across four merchants, each merchant's local model sees clean, unconnected accounts. Because we sit at the aggregator level, we stitch their isolated graphs together using shared hashed identifiers.
+* **Why Classical Graph Algorithms (PageRank & Louvain) instead of GraphSAGE?** Regulators don't accept "the neural net said so" as evidence. We use **Louvain** to instantly surface hidden botnet clusters, and **PageRank** to identify the critical "cash-out" nodes connecting them.
+* **The Epidemiological SIS Model:** Fraud risk changes over time. We model fraud like a virus (Susceptible-Infected-Susceptible). If a clean account shares a device with a scammer, its risk spikes ("exposed"). If it stays clean, its risk mathematically decays over time. This catches "dormant-then-reactivate" evasion tactics where fraudsters lay low to let their scores naturally reset.
 
-### Layer 1 — Pre-ML Guardrails
-* **Semantic firewall:** scans the raw agent prompt for injection/bypass patterns before any ML runs.
-* **Agentic velocity limits:** autonomous AI-driven transactions over ₹10,000 hit a hard trust boundary and are blocked outright — this line is intentionally not ML-adjustable.
-* **Synthetic identity ("too clean") detector:** inverts the usual anomaly-hunting paradigm. Real humans are messy; fabricated accounts are often statistically too perfect (zero amount variance, exactly one IP hit, no geo mismatch, suspiciously round session durations). Flags before ML is even evaluated.
-
-### Layer 2 — Fraud-Spike Detector
-XGBoost classifier trained on rolling features (IP velocity, device age, amount z-score, graph risk score, etc.). See Model Performance for real numbers.
-
-### Layer 3 — Cross-Merchant Graph Aggregator
-A single merchant only sees its own transaction graph — a ring spread across four merchants looks like four harmless accounts. This layer stitches merchant graphs together using shared hashed identifiers (device ID, IP, card hash), then runs:
-* **PageRank + Louvain community detection** for cross-merchant ring/cluster discovery
-* **Epidemiological (SIS) risk decay** — an account's risk score decays exponentially since its last exposure to a risky neighbor, rather than resetting to zero the moment it goes quiet.
-
-### Layer 4 — Compliance & Explanations
-* **Counterfactual generator:** for any flagged ring, perturbs the graph in memory (severs the suspected shared-resource edges) and recomputes PageRank, producing a concrete, defensible statement: *"If this account had not shared a device with these nodes, its risk score would drop by X."* This is what RBI/compliance teams need to actually freeze an account — not a black-box score.
-* **Adaptive threshold engine:** block/step-up thresholds shift based on business context (stricter for high-risk MCCs, looser for groceries/utilities; extra penalty for Account-Takeover signatures).
+### Layer 4 — Compliance and the Counterfactual Generator
+A graph risk score is not legal evidence. "The PageRank was high" doesn't hold up when an account holder appeals. We built a Counterfactual Generator that produces actual evidentiary proof.
+* **How it works:** It takes the live graph, literally severs the specific edges connecting the suspect account to high-risk nodes (in memory), and recomputes PageRank. The delta between the original score and this counterfactual score is a precise, deterministic answer to: *"How much of this account's risk exists specifically because it shares a device with known high-risk nodes?"* This is the exact legal justification needed to freeze an account.
+* **Adaptive Threshold Engine:** Block thresholds shift based on business context (stricter for high-risk MCCs, extra penalties for Account-Takeover signatures).
 
 ## Repo Structure
 ```text
@@ -168,7 +155,7 @@ cp .env.example .env        # fill in Razorpay test keys — never commit real k
 ```
 
 ## Running the Pipeline
-The stages have a real dependency order — each one reads output the previous stage wrote:
+The stages have a real dependency order — each one reads output the previous stage wrote. You can run `./run_all.sh` or run them manually:
 
 ```bash
 # 1. Generate synthetic transactions + injected fraud rings
