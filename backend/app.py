@@ -442,6 +442,16 @@ async def receive_feedback(req: FeedbackRequest):
 async def pay(req: PayRequest):
     start_time = time.perf_counter()
     amount = req.amount
+    
+    # Input Validation: Reject negative/zero amounts (prevents money-reversal exploits)
+    if amount is not None and amount <= 0:
+        return {
+            'decision': 'BLOCK',
+            'fraud_risk_score': 100.0,
+            'reasons': ['Input Validation: Negative or zero amount rejected.'],
+            'latency_ms': round((time.perf_counter() - start_time) * 1000, 1)
+        }
+    
     if amount is None and req.order_id in ORDERS:
         amount = ORDERS[req.order_id]['amount']
     elif amount is None:
