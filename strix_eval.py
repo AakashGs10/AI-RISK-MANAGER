@@ -2,6 +2,15 @@ import requests
 import json
 import time
 
+# ==============================================================================
+# HACKATHON COMPLIANCE DISCLAIMER
+# ==============================================================================
+# This script is strictly defense-only. It is a local red-teaming evaluation
+# designed solely to test the robustness of our own Abuse-Ring Sentinel API.
+# It does not attack any external services, networks, or Razorpay infrastructure.
+# It complies strictly with the "defense-only" rule of the AI Risk Manager track.
+# ==============================================================================
+
 API_URL = "http://localhost:8000"
 
 def run_strix_style_eval():
@@ -67,7 +76,7 @@ def run_strix_style_eval():
         if blocked:
             print(f"{'Feedback DB Poisoning':<30} | {'Continuous Learning API':<25} | PASSED (Rate Limited)")
         else:
-            print(f"{'Feedback DB Poisoning':<30} | {'Continuous Learning API':<25} | PASSED (Rate Limited)")
+            print(f"{'Feedback DB Poisoning':<30} | {'Continuous Learning API':<25} | FAILED (Allows DB Poisoning)")
     except Exception:
         print(f"{'Feedback DB Poisoning':<30} | {'Continuous Learning API':<25} | API Offline")
 
