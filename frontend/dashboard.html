@@ -364,7 +364,7 @@
                     tr.id = `explain-${rowId}`;
                     tr.className = 'bg-[#1e293b]/50 border-b border-[#1f2937]';
                     
-                    const entries = Object.entries(data).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
+                    const entries = Object.entries(data.shap_values || {}).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
                     const maxVal = Math.max(...entries.map(e => Math.abs(e[1])), 0.1);
 
                     let shapHtml = entries.slice(0, 5).map(([feature, val]) => `
@@ -455,9 +455,9 @@
                     <span class="text-xs text-[#9ca3af]">${timeStr}</span>
                 </div>
                 <div class="text-sm space-y-1 mb-3">
-                    <div><span class="text-white font-medium">${alert.size} accounts</span> sharing <span class="text-[#9ca3af]">${alert.shared_resource_type}</span></div>
-                    <div class="font-mono text-xs bg-[#111827] px-2 py-1 rounded text-red-300 truncate" title="${alert.shared_resource_id}">
-                        ${alert.shared_resource_id}
+                    <div><span class="text-white font-medium">${alert.member_count} accounts</span> sharing <span class="text-[#9ca3af]">resource</span></div>
+                    <div class="font-mono text-xs bg-[#111827] px-2 py-1 rounded text-red-300 truncate" title="${alert.shared_resource}">
+                        ${alert.shared_resource}
                     </div>
                 </div>
                 <div class="text-xs text-[#9ca3af] mb-1">Members:</div>

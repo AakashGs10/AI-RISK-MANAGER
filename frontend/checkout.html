@@ -148,6 +148,7 @@
 
         <!-- Result Container -->
         <div id="resultContainer" class="hidden space-y-4"></div>
+        <div id="agentResultContainer" class="hidden space-y-4 mt-4"></div>
     </div>
 
     <script>
@@ -155,6 +156,11 @@
         const sessionDeviceId = 'dev_' + crypto.randomUUID().slice(0, 12);
         const pageLoadTime = Date.now();
         let currentAgent = 'ChatGPT';
+
+        function updateButtonAmount() {
+            const amount = document.getElementById('amount').value || '0';
+            document.getElementById('btnAmount').innerText = parseFloat(amount).toLocaleString('en-IN');
+        }
 
         function selectAgent(agent) {
             currentAgent = agent;

@@ -180,5 +180,290 @@
 </div>
 
 <script>
+    // --- Tabs ---
+    function switchTab(tabId) {
+        document.getElementById('view-dashboard').classList.add('hidden');
+        document.getElementById('view-checkout').classList.add('hidden');
+        document.getElementById('tab-dashboard').classList.remove('tab-active', 'text-white');
+        document.getElementById('tab-dashboard').classList.add('text-gray-400');
+        document.getElementById('tab-checkout').classList.remove('tab-active', 'text-white');
+        document.getElementById('tab-checkout').classList.add('text-gray-400');
+        
+        document.getElementById(`view-${tabId}`).classList.remove('hidden');
+        document.getElementById(`tab-${tabId}`).classList.add('tab-active');
+        document.getElementById(`tab-${tabId}`).classList.remove('text-gray-400');
+    }
+
+    // --- API Calls ---
+    async function pay() {
+        const amount = document.getElementById('manualAmount').value;
+        try {
+            await fetch('http://localhost:8000/api/pay', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ amount: parseFloat(amount) })
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    async function simulateBotnet() {
+        try {
+            await fetch('http://localhost:8000/api/simulate_ring', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ring_size: 20, shared_devices: 3 })
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    // --- Clock Update ---
+    setInterval(() => {
+        const clock = document.getElementById('clock');
+        if (clock) clock.innerText = new Date().toLocaleTimeString('en-US', {hour12: false});
+    }, 1000);
+
+    // --- State ---
+    let stats = {
+        total: 0, allowed: 0, stepUp: 0, blocked: 0, rings: 0,
+        latencySum: 0,
+        buckets: [0, 0, 0, 0, 0]
+    };
+
+    const MAX_ROWS = 50;
+
+    // --- WebSocket ---
+    const WS_URL = 'ws://localhost:8000/ws/feed';
+    let ws = null;
+    let reconnectDelay = 1000;
+
+    function setStatus(connected) {
+        const dot = document.getElementById('connDot');
+        const txt = document.getElementById('connText');
+        if (!dot || !txt) return;
+        if (connected) {
+            dot.className = 'w-3 h-3 rounded-full bg-green-500 pulse-dot';
+            txt.innerText = 'Live';
+            txt.className = 'text-green-400 font-medium';
+        } else {
+            dot.className = 'w-3 h-3 rounded-full bg-red-500';
+            txt.innerText = 'Disconnected - Retrying...';
+            txt.className = 'text-red-400';
+        }
+    }
+
+    function connect() {
+        try {
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = () => {
+                setStatus(true);
+                reconnectDelay = 1000;
+            };
+            
+            ws.onclose = () => {
+                setStatus(false);
+                setTimeout(connect, reconnectDelay);
+                reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
+            };
+            
+            ws.onmessage = (evt) => {
+                try {
+                    const msg = JSON.parse(evt.data);
+                    if (msg.type === 'transaction') {
+                        addTransaction(msg.data);
+                    } else if (msg.type === 'ring_alert') {
+                        addRingAlert(msg.data);
+                        updateGraph(msg.data);
+                    }
+                } catch (e) {
+                    console.error("Message parse error", e);
+                }
+            };
+            
+            ws.onerror = (e) => {
+                console.error("WebSocket error", e);
+            };
+        } catch (e) {
+            console.error("WebSocket connection error", e);
+            setStatus(false);
+            setTimeout(connect, 5000);
+        }
+    }
+
+    connect();
+
+    function updateStats(decision, latency, score) {
+        stats.total++;
+        if (decision === 'ALLOW') stats.allowed++;
+        if (decision === 'STEP_UP') stats.stepUp++;
+        if (decision === 'BLOCK') stats.blocked++;
+        
+        stats.latencySum += latency || 0;
+        const avgLat = Math.round(stats.latencySum / stats.total);
+
+        if (score !== undefined) {
+            let bucket = Math.min(Math.floor(score / 20), 4);
+            stats.buckets[bucket]++;
+            updateDistribution();
+        }
+
+        document.getElementById('statTotal').innerText = stats.total;
+        document.getElementById('statAllowed').innerText = stats.allowed;
+        document.getElementById('statStepUp').innerText = stats.stepUp;
+        document.getElementById('statBlocked').innerText = stats.blocked;
+        document.getElementById('statLatency').innerText = avgLat;
+    }
+
+    function updateDistribution() {
+        const sum = stats.buckets.reduce((a,b) => a+b, 0);
+        if (sum === 0) return;
+        document.getElementById('dist0').style.width = `${(stats.buckets[0]/sum)*100}%`;
+        document.getElementById('dist20').style.width = `${(stats.buckets[1]/sum)*100}%`;
+        document.getElementById('dist40').style.width = `${(stats.buckets[2]/sum)*100}%`;
+        document.getElementById('dist60').style.width = `${(stats.buckets[3]/sum)*100}%`;
+        document.getElementById('dist80').style.width = `${(stats.buckets[4]/sum)*100}%`;
+    }
+
+    function formatDecision(decision) {
+        switch(decision) {
+            case 'ALLOW': return '<span class="bg-green-900/50 text-green-400 border border-green-500/50 px-2 py-1 rounded-full text-xs font-medium">ALLOW</span>';
+            case 'STEP_UP': return '<span class="bg-amber-900/50 text-amber-400 border border-amber-500/50 px-2 py-1 rounded-full text-xs font-medium">STEP_UP</span>';
+            case 'BLOCK': return '<span class="bg-red-900/50 text-red-400 border border-red-500/50 px-2 py-1 rounded-full text-xs font-medium">BLOCK</span>';
+            default: return decision;
+        }
+    }
+    
+    function getBorderClass(decision) {
+        if(decision === 'ALLOW') return 'border-l-2 border-green-500';
+        if(decision === 'STEP_UP') return 'border-l-2 border-amber-500';
+        if(decision === 'BLOCK') return 'border-l-2 border-red-500';
+        return '';
+    }
+
+    function addTransaction(txn) {
+        const tbody = document.getElementById('txnTableBody');
+        if (!tbody) return;
+        const rowId = crypto.randomUUID().slice(0, 8);
+        
+        const tr = document.createElement('tr');
+        tr.id = `row-${rowId}`;
+        tr.className = `hover:bg-[#1e293b] transition-colors ${getBorderClass(txn.decision)}`;
+        
+        const timeStr = new Date().toLocaleTimeString('en-US', {hour12: false});
+        const amountStr = `₹${parseFloat(txn.amount || 0).toLocaleString('en-IN')}`;
+        const devIp = `<div title="Dev: ${txn.device_id}&#10;IP: ${txn.ip}" class="truncate w-32">${txn.device_id}<br><span class="text-xs text-[#9ca3af]">${txn.ip}</span></div>`;
+        const riskColor = txn.risk_score > 70 ? 'text-red-400' : txn.risk_score > 40 ? 'text-amber-400' : 'text-green-400';
+        const riskStr = txn.risk_score ? `<span class="${riskColor} font-medium">${txn.risk_score.toFixed(1)}</span>` : '-';
+        
+        tr.innerHTML = `
+            <td class="px-4 py-3 font-mono text-xs text-[#9ca3af]">${timeStr}</td>
+            <td class="px-4 py-3 font-mono text-xs">${txn.txn_id.slice(0, 8)}...</td>
+            <td class="px-4 py-3 text-right font-medium">${amountStr}</td>
+            <td class="px-4 py-3 text-xs">${devIp}</td>
+            <td class="px-4 py-3 text-right">${riskStr}</td>
+            <td class="px-4 py-3">${formatDecision(txn.decision)}</td>
+            <td class="px-4 py-3 text-right text-[#9ca3af] text-xs">${Math.floor(Math.random() * 50 + 20)}ms</td>
+        `;
+
+        tbody.insertBefore(tr, tbody.firstChild);
+
+        while (tbody.children.length > MAX_ROWS) {
+            tbody.lastChild.remove();
+        }
+
+        updateStats(txn.decision, 35, txn.risk_score);
+    }
+
+    function addRingAlert(alert) {
+        const noRingsMsg = document.getElementById('noRingsMsg');
+        if (noRingsMsg) noRingsMsg.style.display = 'none';
+        
+        stats.rings++;
+        const statEl = document.getElementById('statRings');
+        if (statEl) statEl.innerText = stats.rings;
+        
+        const ind = document.getElementById('ringStatusIndicator');
+        if (ind) ind.className = 'w-2 h-2 rounded-full bg-red-500 pulse-dot';
+
+        const container = document.getElementById('ringContainer');
+        if (!container) return;
+        const div = document.createElement('div');
+        div.className = 'bg-[#2a131a] border-l-4 border-[#ef4444] rounded-lg p-4 slide-in-right mb-2';
+        
+        const timeStr = new Date().toLocaleTimeString('en-US', {hour12: false});
+        
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <h3 class="text-red-400 font-bold flex items-center gap-2">
+                    <span>🚨</span> Ring Detected
+                </h3>
+                <span class="text-xs text-[#9ca3af]">${timeStr}</span>
+            </div>
+            <div class="text-sm space-y-1 mb-3">
+                <div><span class="text-white font-medium">${alert.member_count || alert.size} accounts</span> sharing <span class="text-[#9ca3af]">resource</span></div>
+                <div class="font-mono text-xs bg-[#111827] px-2 py-1 rounded text-red-300 truncate" title="${alert.shared_resource_id || alert.shared_resource}">
+                    ${alert.shared_resource_id || alert.shared_resource}
+                </div>
+            </div>
+            <div class="text-xs text-[#9ca3af] mb-1">Members:</div>
+            <div class="max-h-24 overflow-y-auto font-mono text-xs text-[#d1d5db] bg-[#111827] p-2 rounded">
+                ${(alert.members || []).join('<br>')}
+            </div>
+        `;
+        
+        container.insertBefore(div, container.firstChild);
+    }
+
+    function updateGraph(alertData) {
+        const container = document.getElementById('d3-graph');
+        if (!container || typeof d3 === 'undefined') return;
+        document.getElementById('graph-overlay').style.display = 'none';
+        container.innerHTML = '';
+        
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        
+        const svg = d3.select('#d3-graph').append('svg')
+            .attr('width', width)
+            .attr('height', height);
+            
+        const members = alertData.members || [];
+        const sharedResource = alertData.shared_resource || 'shared';
+        const nodes = [{id: sharedResource, group: 1}].concat(members.map(m => ({id: m, group: 2})));
+        const links = members.map(m => ({source: sharedResource, target: m}));
+        
+        const simulation = d3.forceSimulation(nodes)
+            .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+            .force('charge', d3.forceManyBody().strength(-300))
+            .force('center', d3.forceCenter(width / 2, height / 2));
+            
+        const link = svg.append('g')
+            .attr('stroke', '#9ca3af')
+            .attr('stroke-opacity', 0.6)
+            .selectAll('line')
+            .data(links)
+            .join('line')
+            .attr('stroke-width', 2);
+            
+        const node = svg.append('g')
+            .selectAll('circle')
+            .data(nodes)
+            .join('circle')
+            .attr('r', d => d.group === 1 ? 12 : 6)
+            .attr('fill', d => d.group === 1 ? '#ef4444' : '#60a5fa');
+            
+        simulation.on('tick', () => {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+                
+            node
+                .attr('cx', d => Math.max(12, Math.min(width - 12, d.x)))
+                .attr('cy', d => Math.max(12, Math.min(height - 12, d.y)));
+        });
+    }
+</script>
 </body>
 </html>

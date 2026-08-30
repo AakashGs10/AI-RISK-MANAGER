@@ -1,0 +1,13 @@
+{
+  "name": "razorpay-sentinel",
+  "type": "mcp",
+  "version": "1.0.0",
+  "mcpServers": {
+    "razorpay_sentinel": {
+      "command": "python",
+      "args": [
+        "backend/mcp_server.py"
+      ]
+    }
+  }
+}

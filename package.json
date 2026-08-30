@@ -1,0 +1,12 @@
+{
+  "name": "razorpay-abuse-ring-sentinel",
+  "version": "1.0.0",
+  "description": "Razorpay Sentinel MCP Security Server",
+  "main": "backend/mcp_server.py",
+  "mcp": {
+    "command": "python",
+    "args": [
+      "backend/mcp_server.py"
+    ]
+  }
+}

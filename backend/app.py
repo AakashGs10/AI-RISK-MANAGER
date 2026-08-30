@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import razorpay
 import numpy as np
+import pandas as pd
 
 try:
     from backend.redis_client import RiskStore
@@ -323,8 +324,8 @@ async def evaluate_risk(req: PayRequest):
     else:
         risk_score, _, _ = run_heuristic(features, amount, req.new_payee)
         
-    if risk_score >= 70: decision = 'BLOCK'
-    elif risk_score >= 40: decision = 'STEP_UP'
+    if risk_score >= 75: decision = 'BLOCK'
+    elif risk_score >= 45: decision = 'STEP_UP'
     else: decision = 'ALLOW'
     
     return {
@@ -341,6 +342,21 @@ async def evaluate_risk(req: PayRequest):
 
 # Continuous Learning DB
 DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
+
+def init_db():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS transactions
+                     (txn_id TEXT PRIMARY KEY, timestamp REAL, user_id TEXT, amount REAL,
+                      ip TEXT, device_id TEXT, card_hash TEXT, actor_type TEXT,
+                      risk_score REAL, decision TEXT, label INTEGER DEFAULT NULL)''')
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"DB Init Error: {e}")
+
+init_db()
 
 def store_transaction(txn_data, decision, risk_score):
     try:
@@ -464,7 +480,7 @@ async def pay(req: PayRequest):
         reasons.append("Agentic Guardrail: LLM Prompt Injection attack detected.")
         fraud_decision = 'BLOCK'
         STATS['blocked'] += 1
-    elif req.amount > 10000 and "mcp" in str(req.device_id).lower():
+    elif req.amount > 10000 and (req.agent_prompt or "mcp" in str(req.device_id).lower()):
         fraud_risk_score = 95.0
         features['agentic_velocity_anomaly'] = True
         reasons.append(f"Agentic Guardrail: ₹{req.amount} exceeds the strict ₹10,000 hard-limit for autonomous AI agents.")
@@ -479,7 +495,7 @@ async def pay(req: PayRequest):
     is_new_acc = features.get('is_new_account', 0)
     amt_z = features.get('amount_zscore', 0)
     ip_vel = features.get('ip_velocity', 1)
-    if is_new_acc == 1 and req.geo_mismatch == False and ip_vel == 1 and abs(amt_z) <= 0.01 and graph_score < 0.05:
+    if is_new_acc == 1 and req.geo_mismatch == False and ip_vel == 1 and abs(amt_z) <= 0.01 and features.get('graph_risk_score', 0.5) < 0.05:
         if req.session_duration == 30.0:  # Default perfectly round number often used in basic scripts
             fraud_risk_score = max(fraud_risk_score, 88.0)
             reasons.append("Synthetic Identity Detection: Behavior is statistically 'too clean' (zero variance, zero friction).")

@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 import networkx as nx
 import community.community_louvain as community_louvain
 from sklearn.linear_model import LogisticRegression
@@ -24,11 +24,16 @@ def run_aggregator():
     tabular_df = pd.read_csv(os.path.join(data_dir, "tabular_features.csv"))
     
     # 1. Simulate Local Merchant Graphs (they miss the big picture)
+    # Synthesize merchant_id (simulate 4 merchants for cross-merchant demo)
+    unique_users = tabular_df['user_id'].unique()
+    merchant_map = {u: f'merchant_{i % 4}' for i, u in enumerate(unique_users)}
+    tabular_df['merchant_id'] = tabular_df['user_id'].map(merchant_map)
+    
     merchants = tabular_df['merchant_id'].unique()
     local_graphs = {}
     for m in merchants:
-        merchant_txns = tabular_df[tabular_df['merchant_id'] == m]['txn_id']
-        local_edges = edges_df[(edges_df['edge_type'] != 'transaction') | (edges_df['weight'].isin(merchant_txns))]
+        merchant_users = tabular_df[tabular_df['merchant_id'] == m]['user_id'].unique()
+        local_edges = edges_df[(edges_df['source'].isin(merchant_users)) | (edges_df['target'].isin(merchant_users))]
         G_local = nx.from_pandas_edgelist(local_edges, 'source', 'target', ['edge_type', 'weight'])
         local_graphs[m] = G_local
     
