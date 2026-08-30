@@ -42,9 +42,9 @@ flowchart TD
     
     %% Core ML Engines
     subgraph CoreML[Layer 2 & 3: The ML Engines]
-        XGB["XGBoost Layer 1<br>Fraud-Spike Detection"]:::ml
-        FGA["Cross-Merchant Graph Stitching<br>Topology & Community Detection"]:::ml
-        SIS["Epidemiological SIS Model<br>Time-Decaying Risk Propagation"]:::ml
+        XGB["Layer 2: XGBoost<br>Fraud-Spike Detection"]:::ml
+        FGA["Layer 3a: Cross-Merchant Graph Setup<br>Layer 3b: Louvain + PageRank"]:::ml
+        SIS["Layer 3c: Epidemiological SIS Model<br>Epidemic Decay"]:::ml
     end
     
     RC --> XGB
@@ -111,11 +111,9 @@ Once a transaction clears the guardrails, it flows into the Fraud-Spike Detector
   3. **Tabular Dominance:** Neural nets earn their keep on unstructured data (images/text). On structured, rolling numeric features, tree ensembles consistently match or beat deep learning with far less training data.
 
 ### Layer 3 — The Cross-Merchant Graph Aggregator
-This is where we catch the coordinated rings that no single merchant could ever see. If a mule ring spreads its accounts across four merchants, each merchant's local model sees clean, unconnected accounts. Because we sit at the aggregator level, we stitch their isolated graphs together.
-
-* **Layer 3a — Cross-merchant graph setup (FGA Node / CoreML Subgraph):** We construct a unified topological view, linking disparate user accounts via shared resources (hashed IP, device IDs, instruments) into a CoreML-compatible subgraph structure.
-* **Layer 3b — Louvain + PageRank:** Regulators don't accept "the neural net said so" as evidence. Instead of black-box GraphSAGE, we use **Louvain community detection** to instantly surface hidden botnet clusters, and **PageRank** to identify the critical "cash-out" nodes connecting them. These live ring alerts are streamed directly to the dashboard via a WebSocket (`/ws/feed`) and stored in `graph_engine/output/graph_risk_scores.csv`.
-* **Layer 3c — The Epidemiological SIS Model (Epidemic Decay):** Fraud risk changes over time. We model fraud like a virus (Susceptible-Infected-Susceptible). If a clean account shares a device with a scammer, its risk spikes ("exposed"). If it stays clean, its risk mathematically decays over time. This catches "dormant-then-reactivate" evasion tactics where fraudsters lay low to let their scores naturally reset.
+This is where we catch the coordinated rings that no single merchant could ever see. If a mule ring spreads its accounts across four merchants, each merchant's local model sees clean, unconnected accounts. Because we sit at the aggregator level, we stitch their isolated graphs together using shared hashed identifiers.
+* **Why Classical Graph Algorithms (PageRank & Louvain) instead of GraphSAGE?** Regulators don't accept "the neural net said so" as evidence. We use **Louvain** to instantly surface hidden botnet clusters, and **PageRank** to identify the critical "cash-out" nodes connecting them.
+* **The Epidemiological SIS Model:** Fraud risk changes over time. We model fraud like a virus (Susceptible-Infected-Susceptible). If a clean account shares a device with a scammer, its risk spikes ("exposed"). If it stays clean, its risk mathematically decays over time. This catches "dormant-then-reactivate" evasion tactics where fraudsters lay low to let their scores naturally reset.
 
 ### Layer 4 — Compliance and the Counterfactual Generator
 A graph risk score is not legal evidence. "The PageRank was high" doesn't hold up when an account holder appeals. We built a Counterfactual Generator that produces actual evidentiary proof.
