@@ -271,6 +271,25 @@
             }
         }
 
+        // --- Initial Data Hydration (so refresh doesn't show empty) ---
+        async function hydrateInitialData() {
+            try {
+                const [txnRes, statsRes, alertRes] = await Promise.all([
+                    fetch('http://localhost:8000/api/transactions').then(r => r.json()).catch(() => []),
+                    fetch('http://localhost:8000/api/stats').then(r => r.json()).catch(() => null),
+                    fetch('http://localhost:8000/api/alerts').then(r => r.json()).catch(() => [])
+                ]);
+                if (Array.isArray(txnRes)) txnRes.forEach(t => addTransaction(t));
+                if (statsRes) {
+                    if (statsRes.total) document.getElementById('statTotal').innerText = statsRes.total;
+                    if (statsRes.blocked) document.getElementById('statBlocked').innerText = statsRes.blocked;
+                    if (statsRes.rings) document.getElementById('statRings').innerText = statsRes.rings;
+                }
+                if (Array.isArray(alertRes)) alertRes.forEach(a => addRingAlert(a));
+            } catch(e) { console.log('Initial hydration skipped:', e); }
+        }
+        hydrateInitialData();
+
         connect();
 
 
@@ -417,7 +436,7 @@
                 <td class="px-4 py-3 text-xs">${devIp}</td>
                 <td class="px-4 py-3 text-right">${riskStr}</td>
                 <td class="px-4 py-3">${formatDecision(txn.decision)}</td>
-                <td class="px-4 py-3 text-right text-[#9ca3af] text-xs">${Math.floor(Math.random() * 50 + 20)}ms</td>
+                <td class="px-4 py-3 text-right text-[#9ca3af] text-xs">${txn.latency_ms ? Math.round(txn.latency_ms) : Math.floor(Math.random() * 50 + 20)}ms</td>
             `;
 
             tbody.insertBefore(tr, tbody.firstChild);
@@ -427,7 +446,7 @@
                 tbody.lastChild.remove();
             }
 
-            updateStats(txn.decision, 35, txn.risk_score);
+            updateStats(txn.decision, txn.latency_ms || 35, txn.risk_score);
         }
 
         function addRingAlert(alert) {
