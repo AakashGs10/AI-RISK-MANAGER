@@ -281,9 +281,26 @@
                 ]);
                 if (Array.isArray(txnRes)) txnRes.forEach(t => addTransaction(t));
                 if (statsRes) {
-                    if (statsRes.total) document.getElementById('statTotal').innerText = statsRes.total;
-                    if (statsRes.blocked) document.getElementById('statBlocked').innerText = statsRes.blocked;
-                    if (statsRes.rings) document.getElementById('statRings').innerText = statsRes.rings;
+                    if (statsRes.total !== undefined) {
+                        stats.total = statsRes.total;
+                        document.getElementById('statTotal').innerText = stats.total;
+                    }
+                    if (statsRes.allowed !== undefined) {
+                        stats.allowed = statsRes.allowed;
+                        document.getElementById('statAllowed').innerText = stats.allowed;
+                    }
+                    if (statsRes.step_up !== undefined) {
+                        stats.stepUp = statsRes.step_up;
+                        document.getElementById('statStepUp').innerText = stats.stepUp;
+                    }
+                    if (statsRes.blocked !== undefined) {
+                        stats.blocked = statsRes.blocked;
+                        document.getElementById('statBlocked').innerText = stats.blocked;
+                    }
+                    if (statsRes.rings !== undefined) {
+                        stats.rings = statsRes.rings;
+                        document.getElementById('statRings').innerText = stats.rings;
+                    }
                 }
                 if (Array.isArray(alertRes)) alertRes.forEach(a => addRingAlert(a));
             } catch(e) { console.log('Initial hydration skipped:', e); }
