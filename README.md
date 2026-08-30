@@ -72,16 +72,17 @@ flowchart TD
     %% MCP SOC Analyst Integration
     subgraph MCP[Model Context Protocol Server]
         Claude["Claude Desktop App<br>(Tier-3 SOC Analyst)"]:::mcp
-        T1[get_active_fraud_rings]:::mcp
-        T2[generate_dispute_evidence]:::mcp
-        T3[evaluate_risk]:::mcp
+        T1[process_payment]:::mcp
+        T2[get_active_fraud_rings]:::mcp
+        T3[generate_dispute_evidence]:::mcp
     end
     
     Claude <--> T1
     Claude <--> T2
     Claude <--> T3
-    T1 -.-> FGA
-    T2 -.-> CF
+    T1 -.-> Gateway
+    T2 -.-> FGA
+    T3 -.-> CF
     
     %% Styling
     classDef core fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#fff
