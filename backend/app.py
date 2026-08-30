@@ -53,6 +53,16 @@ TRANSACTIONS = collections.deque(maxlen=500)
 
 import os
 DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
+STATS = {'total': 0, 'blocked': 0, 'step_up': 0, 'allowed': 0, 'rings': 0, 'total_latency': 0.0}
+RESOURCE_TO_USERS = defaultdict(set)
+IP_TIMESTAMPS = defaultdict(list)
+DEVICE_FIRST_SEEN = {}
+USER_FIRST_SEEN = {}
+USER_AMOUNTS = defaultdict(list)
+WS_CLIENTS = []
+RING_ALERTS = []
+ALERTED_RESOURCES = set()
+
 def load_txns_from_db():
     try:
         import sqlite3
@@ -78,20 +88,34 @@ def load_txns_from_db():
             }
             if not any(t['txn_id'] == r[0] for t in TRANSACTIONS):
                 TRANSACTIONS.append(txn)
+                STATS['total'] += 1
+                if r[9] == 'BLOCK':
+                    STATS['blocked'] += 1
+                elif r[9] == 'STEP_UP':
+                    STATS['step_up'] += 1
+                elif r[9] == 'ALLOW':
+                    STATS['allowed'] += 1
+                STATS['total_latency'] += 35.0 # Simulated historical latency ms
+                
+                # Rebuild in-memory graph
+                if r[5]: RESOURCE_TO_USERS[r[5]].add(r[2]) # device
+                if r[4]: RESOURCE_TO_USERS[r[4]].add(r[2]) # ip
+                if r[6]: RESOURCE_TO_USERS[r[6]].add(r[2]) # card_or_upi
+                
         conn.close()
+        
+        # Re-detect rings from historical data
+        for resource, users in RESOURCE_TO_USERS.items():
+            if resource is not None and len(users) >= 4 and resource not in ALERTED_RESOURCES:
+                ALERTED_RESOURCES.add(resource)
+                cluster = {'shared_resource': resource, 'member_count': len(users), 'members': list(users)}
+                RING_ALERTS.append(cluster)
+                STATS['rings'] += 1
+
     except Exception as e:
         print("DB Load Error:", e)
 
 load_txns_from_db()
-RESOURCE_TO_USERS = defaultdict(set)
-IP_TIMESTAMPS = defaultdict(list)
-DEVICE_FIRST_SEEN = {}
-USER_FIRST_SEEN = {}
-USER_AMOUNTS = defaultdict(list)
-WS_CLIENTS = []
-STATS = {'total': 0, 'blocked': 0, 'step_up': 0, 'allowed': 0, 'rings': 0, 'total_latency': 0.0}
-RING_ALERTS = []
-ALERTED_RESOURCES = set()
 MERCHANT_ALERTS = collections.deque(maxlen=100)  # MCP merchant alert log
 
 def alert_merchant_via_mcp(merchant: str, decision: str, reason: str, amount: float, user_id: str, trace_id: str, merchant_email: str = None, merchant_phone: str = None):
