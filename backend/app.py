@@ -516,6 +516,11 @@ async def pay(req: PayRequest):
         reasons.append("Behavioral Biometrics: Robotic keystroke speed detected (Script/Bot).")
         fraud_decision = 'BLOCK'
         STATS['blocked'] += 1
+    elif req.device_id in ALERTED_RESOURCES or req.ip in ALERTED_RESOURCES:
+        fraud_risk_score = max(fraud_risk_score, 85.0)
+        reasons.append("Network Guardrail: Device/IP is part of a known Active Fraud Ring.")
+        fraud_decision = 'STEP_UP'
+        STATS['step_up'] += 1
     else:
         # --- Real-Life Adaptive Threshold Engine ---
         # Enterprise fraud systems use dynamic thresholds based on business context
