@@ -57,4 +57,35 @@ export class SentinelTools {
       return { success: false, error: e.message };
     }
   }
+
+  @Tool({
+    name: 'submit_transaction',
+    description: 'Submit a single transaction to the Sentinel API for risk scoring.',
+    schema: z.object({
+      user_id: z.string(),
+      amount: z.number(),
+      ip: z.string(),
+      device_id: z.string(),
+      card_or_upi: z.string(),
+      new_payee: z.boolean().optional(),
+      hour_of_day: z.number().optional(),
+      geo_mismatch: z.boolean().optional(),
+      agent_prompt: z.string().optional()
+    })
+  })
+  async submitTransaction(args: any) {
+    try {
+      const response = await fetch('http://localhost:8000/api/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: `txn_${Math.random().toString(36).substring(7)}`,
+          ...args
+        })
+      });
+      return await response.json();
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
 }
