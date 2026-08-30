@@ -279,7 +279,7 @@
                     fetch('http://localhost:8000/api/stats').then(r => r.json()).catch(() => null),
                     fetch('http://localhost:8000/api/alerts').then(r => r.json()).catch(() => [])
                 ]);
-                if (Array.isArray(txnRes)) txnRes.forEach(t => addTransaction(t));
+                if (Array.isArray(txnRes)) txnRes.reverse().forEach(t => addTransaction(t));
                 if (statsRes) {
                     if (statsRes.total !== undefined) {
                         stats.total = statsRes.total;
